@@ -113,21 +113,21 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		}
 	}
 
-	// This is the EscalationPolicyID field in the ConfigMap
-	// This should always match the PDI escalation policy ID
-	var ConfigMapEscalationPolicy string
-
-	// Check if the ConfigMap has the ESCALATION_POLICY_ID key
-	// If not found, update the ConfigMap to have the key mapped to PDI escalation policy
-	if ConfigMapEscalationPolicy, err = pdData.GetConfigMapEscalationPolicy(r.client, cd.Namespace, configMapName); err != nil {
+	// If no value in ConfigMap for EscalationPolicyID set it from pdi.EscalationPolicyID
+	if pdData.EscalationPolicyID == "" {
+		// update policy ID from PDI, it is used in next set call
+		pdData.EscalationPolicyID = pdi.Spec.EscalationPolicy
 		if err = pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
 			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name", configMapName)
 			return err
 		}
 	} else {
-		// Check if there is a change in PDI escalation policy
-		if pdData.EscalationPolicyID != ConfigMapEscalationPolicy {
+		// ConfigMap has a value for EscalationPolicyID
+		// Check if the value is the same EscalationPolicyID as from PDI
+		if pdData.EscalationPolicyID != pdi.Spec.EscalationPolicy {
 			r.reqLogger.Info("PDI EscalationPolicy changed, updating service", "ClusterID", pdData.ClusterID, "ServiceID", pdData.ServiceID, "ClusterDeployment.Namespace", cd.Namespace)
+			// update policy ID from PDI, it is used in next update call
+			pdData.EscalationPolicyID = pdi.Spec.EscalationPolicy
 			err := pdclient.UpdateEscalationPolicy(pdData)
 			if err != nil {
 				r.reqLogger.Error(err, "Error updating PagerDuty service", "ClusterID", pdData.ClusterID, "ServiceID", pdData.ServiceID, "ClusterDeployment.Namespace", cd.Namespace)

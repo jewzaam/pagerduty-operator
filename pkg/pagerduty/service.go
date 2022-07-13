@@ -174,6 +174,12 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 		return err
 	}
 
+	data.EscalationPolicyID, err = getConfigMapKey(pdAPIConfigMap.Data, "ESCALATION_POLICY_ID")
+	// do not return error, allow EscalationPolicyID to be empty string
+	if err != nil {
+		data.EscalationPolicyID = ""
+	}
+
 	val := pdAPIConfigMap.Data["HIBERNATING"]
 	data.Hibernating = val == "true"
 
@@ -201,23 +207,6 @@ func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName s
 	}
 
 	return nil
-}
-
-// GetConfigMapEscalationPolicy returns the EscalationPolicyID from the ClusterDeployment's PagerDuty Configmap
-// If the key doesn't exist it returns an error
-func (data *Data) GetConfigMapEscalationPolicy(osc client.Client, namespace string, cmName string) (string, error) {
-	pdAPIConfigMap := &corev1.ConfigMap{}
-	if err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: cmName}, pdAPIConfigMap); err != nil {
-		return "", err
-	}
-
-	// Check if the ESCALATION_POLICY_ID key exists
-	val, err := getConfigMapKey(pdAPIConfigMap.Data, "ESCALATION_POLICY_ID")
-	if err != nil {
-		return "", err
-	}
-
-	return val, nil
 }
 
 // GetService searches the PD API for an already existing service
